@@ -3,10 +3,12 @@ package controllers
 import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gofiber/fiber/v2"
+	"go-server-jwt/constant"
 	"go-server-jwt/database"
 	"go-server-jwt/models"
 	"golang.org/x/crypto/bcrypt"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -86,11 +88,11 @@ func Login(c *fiber.Ctx) error {
 	c.Cookie(&cookie)
 
 	return c.JSON(fiber.Map{
-		"message": "Success",
+		"token": token,
 	})
 }
 
-func User(c *fiber.Ctx) error {
+func GetUserWithCookie(c *fiber.Ctx) error {
 	cookie := c.Cookies("jwt")
 
 	token, err := jwt.ParseWithClaims(cookie, &jwt.StandardClaims{}, func(token *jwt.Token) (interface{}, error) {
@@ -112,7 +114,41 @@ func User(c *fiber.Ctx) error {
 	return c.JSON(user)
 }
 
-func Logout(c *fiber.Ctx) error {
+func GetUserWithToken(c *fiber.Ctx) error {
+	user, err := ExistUser(c)
+
+	if err != nil {
+		c.Status(fiber.StatusUnauthorized)
+		return c.JSON(fiber.Map{
+			"message": "Unauthenticated " + err.Error(),
+		})
+	}
+
+	return c.JSON(user)
+}
+
+func ExistUser(c *fiber.Ctx) (models.User, error) {
+	bearerToken := c.GetReqHeaders()[constant.Authorization]
+	tokenRaw := strings.Split(bearerToken, constant.Bearer)[1]
+	tokenRaw = strings.TrimSpace(tokenRaw)
+
+	token, err := jwt.ParseWithClaims(tokenRaw, &jwt.StandardClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return []byte(SecretKey), nil
+	})
+
+	if err != nil {
+		c.Status(fiber.StatusUnauthorized)
+		return models.User{}, err
+	}
+
+	claims := token.Claims.(*jwt.StandardClaims)
+
+	var user models.User
+	database.DB.Where("id = ?", claims.Issuer).First(&user)
+	return user, nil
+}
+
+func LogoutWithCookie(c *fiber.Ctx) error {
 	cookie := fiber.Cookie{
 		Name:     "jwt",
 		Value:    "",
@@ -122,6 +158,6 @@ func Logout(c *fiber.Ctx) error {
 	c.Cookie(&cookie)
 
 	return c.JSON(fiber.Map{
-		"message": "Logout success",
+		"message": "LogoutWithCookie success",
 	})
 }

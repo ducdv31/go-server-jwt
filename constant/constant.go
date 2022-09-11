@@ -3,6 +3,10 @@ package constant
 const (
 	Authorization = "Authorization"
 	JWT           = "JWT"
-	jwt           = "jwt"
+	Password      = "password"
+	Name          = "name"
+	Email         = "email"
+	Empty         = ""
+	Message       = "message"
 	Bearer        = "Bearer"
 )

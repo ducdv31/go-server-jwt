@@ -114,6 +114,43 @@ func GetUserWithCookie(c *fiber.Ctx) error {
 	return c.JSON(user)
 }
 
+func UpdatePassword(c *fiber.Ctx) error {
+	user, err := ExistUser(c)
+
+	if err != nil {
+		c.Status(fiber.StatusUnauthorized)
+		return c.JSON(fiber.Map{
+			"message": "Unauthenticated " + err.Error(),
+		})
+	}
+
+	var data map[string]string // "password" : ""
+	err = c.BodyParser(&data)
+	if err != nil {
+		return err
+	}
+
+	updatePasswordModel := models.UpdatePassword{
+		Password: []byte(data[constant.Password]),
+	}
+
+	if pass := updatePasswordModel.Password; len(pass) == 0 {
+		c.Status(fiber.StatusNotAcceptable)
+		return c.JSON(fiber.Map{
+			constant.Message: "Invalid password",
+		})
+	}
+
+	newPassword, _ := bcrypt.GenerateFromPassword(updatePasswordModel.Password, 14)
+
+	database.DB.Model(&user).Updates(models.User{Password: newPassword})
+
+	return c.JSON(fiber.Map{
+		"user": user,
+		"pass": updatePasswordModel.Password,
+	})
+}
+
 func GetUserWithToken(c *fiber.Ctx) error {
 	user, err := ExistUser(c)
 

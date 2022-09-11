@@ -18,4 +18,5 @@ func AuthApi(api fiber.Router) {
 	api.Post("/logout", controllers.LogoutWithCookie)
 	api.Post("/update_password", controllers.UpdatePassword)
 	api.Post("/update_user_info", controllers.UpdateUserInfo)
+	api.Post("/delete_user", controllers.DeleteUser)
 }

@@ -209,3 +209,15 @@ func LogoutWithCookie(c *fiber.Ctx) error {
 
 	return utils.ResponseMessage(c, "LogoutWithCookie success")
 }
+
+func DeleteUser(c *fiber.Ctx) error {
+	user, err := ExistUser(c)
+
+	if err != nil {
+		return utils.ResponseMessage(c, "User is not found")
+	}
+
+	database.DB.Delete(&user, user.Id)
+
+	return utils.ResponseMessage(c, "User is deleted")
+}

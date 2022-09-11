@@ -6,6 +6,7 @@ import (
 	"go-server-jwt/constant"
 	"go-server-jwt/database"
 	"go-server-jwt/models"
+	"go-server-jwt/utils"
 	"golang.org/x/crypto/bcrypt"
 	"strconv"
 	"strings"
@@ -49,18 +50,14 @@ func Login(c *fiber.Ctx) error {
 	// Check user by id
 	if user.Id == 0 {
 		c.Status(fiber.StatusNotFound)
-		return c.JSON(fiber.Map{
-			"message": "User not found",
-		})
+		return utils.ResponseMessage(c, "User not found")
 	}
 
 	// Compare password
 	err = bcrypt.CompareHashAndPassword(user.Password, []byte(data["password"]))
 	if err != nil {
 		c.Status(fiber.StatusBadRequest)
-		return c.JSON(fiber.Map{
-			"message": "Incorrect password",
-		})
+		return utils.ResponseMessage(c, "Incorrect password")
 	}
 
 	// JWT Token
@@ -73,9 +70,7 @@ func Login(c *fiber.Ctx) error {
 
 	if e != nil {
 		c.Status(fiber.StatusInternalServerError)
-		return c.JSON(fiber.Map{
-			"message": "Could not login " + e.Error(),
-		})
+		return utils.ResponseMessage(c, "Could not login "+e.Error())
 	}
 
 	cookie := fiber.Cookie{
@@ -101,9 +96,7 @@ func GetUserWithCookie(c *fiber.Ctx) error {
 
 	if err != nil {
 		c.Status(fiber.StatusUnauthorized)
-		return c.JSON(fiber.Map{
-			"message": "Unauthenticated " + err.Error(),
-		})
+		return utils.ResponseMessage(c, "Unauthenticated "+err.Error())
 	}
 
 	claims := token.Claims.(*jwt.StandardClaims)
@@ -119,9 +112,7 @@ func UpdatePassword(c *fiber.Ctx) error {
 
 	if err != nil {
 		c.Status(fiber.StatusUnauthorized)
-		return c.JSON(fiber.Map{
-			"message": "Unauthenticated " + err.Error(),
-		})
+		return utils.ResponseMessage(c, "Unauthenticated "+err.Error())
 	}
 
 	var data map[string]string // "password" : ""
@@ -136,9 +127,7 @@ func UpdatePassword(c *fiber.Ctx) error {
 
 	if pass := updatePasswordModel.Password; len(pass) == 0 {
 		c.Status(fiber.StatusNotAcceptable)
-		return c.JSON(fiber.Map{
-			constant.Message: "Invalid password",
-		})
+		return utils.ResponseMessage(c, "Invalid password")
 	}
 
 	newPassword, _ := bcrypt.GenerateFromPassword(updatePasswordModel.Password, 14)
@@ -151,14 +140,38 @@ func UpdatePassword(c *fiber.Ctx) error {
 	})
 }
 
+func UpdateUserInfo(c *fiber.Ctx) error {
+	user, err := ExistUser(c)
+	if err != nil {
+		return err
+	}
+
+	var data map[string]string
+
+	err = c.BodyParser(&data)
+	if err != nil {
+		return err
+	}
+
+	updateUserModel := models.User{
+		Name: data[constant.Name],
+	}
+
+	if name := updateUserModel.Name; len(name) == 0 {
+		return utils.ResponseMessage(c, "Name is not valid")
+	}
+
+	database.DB.Model(&user).Updates(models.User{Name: updateUserModel.Name})
+
+	return c.JSON(user)
+}
+
 func GetUserWithToken(c *fiber.Ctx) error {
 	user, err := ExistUser(c)
 
 	if err != nil {
 		c.Status(fiber.StatusUnauthorized)
-		return c.JSON(fiber.Map{
-			"message": "Unauthenticated " + err.Error(),
-		})
+		return utils.ResponseMessage(c, "Unauthenticated "+err.Error())
 	}
 
 	return c.JSON(user)
@@ -181,7 +194,7 @@ func ExistUser(c *fiber.Ctx) (models.User, error) {
 	claims := token.Claims.(*jwt.StandardClaims)
 
 	var user models.User
-	database.DB.Where("id = ?", claims.Issuer).First(&user)
+	database.DB.First(&user, "id = ?", claims.Issuer)
 	return user, nil
 }
 
@@ -194,7 +207,5 @@ func LogoutWithCookie(c *fiber.Ctx) error {
 	}
 	c.Cookie(&cookie)
 
-	return c.JSON(fiber.Map{
-		"message": "LogoutWithCookie success",
-	})
+	return utils.ResponseMessage(c, "LogoutWithCookie success")
 }

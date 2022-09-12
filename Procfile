@@ -1,1 +1,1 @@
-web: bin/go-server-jwt
+web: go-server-jwt
